@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import os
 
 def skew_correction(gray_image):
     orig = gray_image
@@ -85,6 +86,24 @@ def add_border(scaled_img):
     border_image = cv2.copyMakeBorder(src=scaled_img, top=20, bottom=20, left=20, right=20, borderType=cv2.BORDER_CONSTANT, value=(255, 255, 255))
     return border_image
 
-
+def preprocess_pipeline(image):
+    """
+    Main entry point for the preprocessing module.
+    Loads image -> Skew Correct -> Resize -> Add Border.
+    Returns: Processed Numpy Image Array
+    """
+    # Load image
+    original_image = cv2.imread(image)
+    
+    # 1. Skew Correction
+    rotated_image = skew_correction(original_image)
+    
+    # 2. Resize
+    resized_image = resize_image(rotated_image)
+    
+    # 3. Add Border
+    final_image = add_border(resized_image)
+    
+    return final_image
 
 
