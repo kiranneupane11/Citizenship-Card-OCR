@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
-import os
+
+import faulthandler
+faulthandler.enable()                          # immediate enable
 
 def skew_correction(gray_image):
     orig = gray_image
@@ -53,8 +55,8 @@ def skew_correction(gray_image):
     rotated = cv2.warpAffine(orig, matrix, (w, h),
                              flags=cv2.INTER_CUBIC,
                              borderMode=cv2.BORDER_REPLICATE)
-    return rotated, rotation_number
-
+    print(f"Image rotated by {rotation_number}")
+    return rotated
 
 
 def resize_image(rotated_image):
@@ -80,29 +82,40 @@ def resize_image(rotated_image):
     print(f"Scaled dimensions: ({new_w}x{new_h})")
     return scaled_img
 
-
-
 def add_border(scaled_img):
-    border_image = cv2.copyMakeBorder(src=scaled_img, top=20, bottom=20, left=20, right=20, borderType=cv2.BORDER_CONSTANT, value=(255, 255, 255))
+    if len(scaled_img.shape) == 2:   # grayscale
+        border_value = 255
+    else:
+        border_value = (255, 255, 255)
+    border_image = cv2.copyMakeBorder(src=scaled_img, top=20, bottom=20, left=20, right=20, borderType=cv2.BORDER_CONSTANT, value = border_value)
+    bor_h, bor_w = border_image.shape[:2]
+    print(f"Dimensions with border:({bor_w}x{bor_h})")
     return border_image
 
-def preprocess_pipeline(image):
+def preprocess_pipeline(cropped_image):
     """
     Main entry point for the preprocessing module.
     Loads image -> Skew Correct -> Resize -> Add Border.
     Returns: Processed Numpy Image Array
     """
-    # Load image
-    original_image = cv2.imread(image)
+    
+    # ensure dtype uint8
+    img = cropped_image.astype(np.uint8, copy=False)
+
+    # Load gray cropped image
+    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
     # 1. Skew Correction
-    rotated_image = skew_correction(original_image)
+    rotated_image= skew_correction(gray_image)
     
     # 2. Resize
     resized_image = resize_image(rotated_image)
     
     # 3. Add Border
     final_image = add_border(resized_image)
+
+    # ensure contiguous and correct dtype before handing to other C extensions
+    final_image = np.ascontiguousarray(final_image, dtype=np.uint8)
     
     return final_image
 

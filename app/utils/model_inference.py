@@ -5,9 +5,8 @@ import numpy as np
 from PIL import Image as PILImage
 import argparse
 
-from app.core.config import PATH_TO_MODEL,PATH_TO_LABELS, MIN_SCORE
+from app.core.config import PATH_TO_MODEL,PATH_TO_LABELS, MIN_SCORE, CROPPED_OUTPUT_PATH
 
-CROPPED_OUTPUT_PATH = 'assets/cropped-output'
 
 def parse_labelmap(labelmap_path=PATH_TO_LABELS):
     """
@@ -47,15 +46,14 @@ def load_model(model_path=PATH_TO_MODEL):
     except Exception as e:
         raise RuntimeError(f"Could not load model at {model_path}. Check paths. Error: {e}")
 
-def load_image(image_path):
+def load_image(image):
     """
     Loads and preprocesses the image into a TensorFlow tensor.
     """
-    image_cv = cv2.imread(image_path)
-    if image_cv is None:
-        raise ValueError(f"Could not read image file: {image_path}")
-    input_tensor = tf.convert_to_tensor(np.expand_dims(image_cv, axis=0), dtype=tf.uint8)
-    return image_cv, input_tensor
+    if image is None:
+        raise ValueError(f"Could not load image {image}")
+    input_tensor = tf.convert_to_tensor(np.expand_dims(image, axis=0), dtype=tf.uint8)
+    return image, input_tensor
 
 def run_detection(detect_fn, input_tensor):
     """
@@ -104,9 +102,9 @@ def crop_image(image_cv, ymin, xmin, ymax, xmax):
     cropped_im = image_pil.crop(roi_box)
     return cropped_im
 
-def process_image(image_path):
+def detect_card(image):
 
-    print(f"\n--- Processing: {image_path} ---")
+    print(f"\n--- Processing: {image} ---")
 
     # Load model
     print("1. Loading TF2 SavedModel...")
@@ -117,7 +115,7 @@ def process_image(image_path):
 
     # Load image
     print("2. Preparing image...")
-    image_cv, input_tensor = load_image(image_path)
+    image_cv, input_tensor = load_image(image)
 
     # Run detection
     print("3. Running detection...")
@@ -128,9 +126,16 @@ def process_image(image_path):
     ymin, xmin, ymax, xmax = get_crop_coordinates(scores, boxes, classes, category_index, MIN_SCORE)
 
     # Crop image
+    print("5. Cropping Image...")
     cropped = crop_image(image_cv, ymin, xmin, ymax, xmax)
 
-    return cropped
+    output_file = os.path.join(CROPPED_OUTPUT_PATH, "input-image-cropped.png")
+    cropped.save(output_file, format='PNG')
+    print(f"6. Cropped Image saved to {output_file}")
+
+    cropped_np = cv2.cvtColor(np.array(cropped), cv2.COLOR_RGB2BGR)
+
+    return cropped_np
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Crop ID card using trained TF2 model")
@@ -139,4 +144,4 @@ if __name__ == "__main__":
                         help="Output path for cropped image")
     args = parser.parse_args()
 
-    process_image(args.image_path)
+    detect_card(args.image)
