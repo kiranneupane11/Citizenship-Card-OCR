@@ -1,1 +1,6 @@
-/assets
+assets/
+env_ocr/
+venv/
+__pycache__/
+*.pyc
+.env
